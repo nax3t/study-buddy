@@ -13,7 +13,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   } catch (e) {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['content/inspector.js']
+      files: ['lib/utils.js', 'content/inspector.js']
     });
     console.log('Inspector injected into tab', tab.id);
   }
