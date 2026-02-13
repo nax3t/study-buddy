@@ -38,6 +38,14 @@
       </select>
     </div>
     <div class="sp-setting-row">
+      <label for="modelSelect">Model</label>
+      <select id="modelSelect">
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5 (fastest, cheapest)</option>
+        <option value="claude-sonnet-4-5-20250929" selected>Sonnet 4.5 (balanced)</option>
+        <option value="claude-opus-4-6">Opus 4.6 (most capable)</option>
+      </select>
+    </div>
+    <div class="sp-setting-row">
       <button class="sp-save-btn" id="saveSettings">Save Settings</button>
     </div>
     <div class="sp-usage" id="usageInfo"></div>
@@ -72,7 +80,7 @@
         <span class="sp-result-type" id="resultType"></span>
         <div class="sp-toolbar-actions">
           <button class="sp-tool-btn" id="copyBtn" title="Copy to clipboard">&#x1F4CB;</button>
-          <button class="sp-tool-btn" id="downloadBtn" title="Download as Markdown">&#x2B07;&#xFE0F;</button>
+          <button class="sp-tool-btn" id="downloadBtn" title="Download as Word doc">&#x2B07;&#xFE0F;</button>
           <button class="sp-tool-btn" id="regenerateBtn" title="Regenerate">&#x1F504;</button>
         </div>
       </div>

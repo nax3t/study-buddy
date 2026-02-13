@@ -327,11 +327,75 @@ $('copyBtn').addEventListener('click', () => {
 });
 
 $('downloadBtn').addEventListener('click', () => {
-  const blob = new Blob([rawText], { type: 'text/markdown' });
+  let bodyContent = '';
+  const label = ACTION_LABELS[currentAction] || currentAction;
+
+  if (['notes', 'study-guide', 'summary'].includes(currentAction)) {
+    bodyContent = __studySnapParseMarkdown(rawText);
+  } else if (currentAction === 'flashcards' && flashcards.length > 0) {
+    bodyContent = '<h1>Flashcards</h1><table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%">' +
+      '<tr style="background:#f0f0f0"><th>Question</th><th>Answer</th></tr>' +
+      flashcards.map(c => '<tr><td>' + escapeHtml(c.front) + '</td><td>' + escapeHtml(c.back) + '</td></tr>').join('') +
+      '</table>';
+  } else if (currentAction === 'practice-quiz' && quizData) {
+    bodyContent = '<h1>Practice Quiz</h1>' +
+      quizData.questions.map((q, i) =>
+        '<h3>Q' + (i + 1) + '. ' + escapeHtml(q.question) + '</h3>' +
+        '<ol type="A">' + q.options.map((opt, oi) =>
+          '<li' + (oi === q.correct ? ' style="font-weight:bold;color:#166534"' : '') + '>' +
+          escapeHtml(opt.replace(/^[A-D]\)\s*/, '')) +
+          (oi === q.correct ? ' &#x2713;' : '') + '</li>'
+        ).join('') + '</ol>' +
+        (q.explanation ? '<p style="color:#166534;font-style:italic">' + escapeHtml(q.explanation) + '</p>' : '')
+      ).join('');
+  } else if (currentAction === 'key-terms') {
+    let terms = [];
+    try {
+      let json = rawText.trim();
+      if (json.startsWith('```')) json = json.replace(/^```\w*\n/, '').replace(/\n```$/, '');
+      terms = JSON.parse(json);
+    } catch (e) {
+      const match = rawText.match(/\[[\s\S]*\]/);
+      if (match) try { terms = JSON.parse(match[0]); } catch (e2) {}
+    }
+    bodyContent = '<h1>Key Terms</h1><table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%">' +
+      '<tr style="background:#f0f0f0"><th>Term</th><th>Definition</th></tr>' +
+      terms.map(t => '<tr><td style="font-weight:bold">' + escapeHtml(t.term) + '</td><td>' + escapeHtml(t.definition) + '</td></tr>').join('') +
+      '</table>';
+  } else {
+    bodyContent = __studySnapParseMarkdown(rawText);
+  }
+
+  const docHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+    'xmlns:w="urn:schemas-microsoft-com:office:word" ' +
+    'xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="utf-8"><title>StudySnap - ' + escapeHtml(label) + '</title>' +
+    '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->' +
+    '<style>' +
+    'body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.6; color: #1e293b; max-width: 7in; margin: 0 auto; }' +
+    'h1 { font-size: 20pt; color: #0f172a; margin-top: 16pt; }' +
+    'h2 { font-size: 16pt; color: #1e293b; border-bottom: 1pt solid #e2e8f0; padding-bottom: 4pt; margin-top: 14pt; }' +
+    'h3 { font-size: 13pt; color: #334155; margin-top: 12pt; }' +
+    'h4 { font-size: 11pt; color: #475569; margin-top: 10pt; }' +
+    'p { margin: 6pt 0; }' +
+    'ul, ol { margin: 6pt 0; padding-left: 24pt; }' +
+    'li { margin: 3pt 0; }' +
+    'code { font-family: Consolas, monospace; font-size: 10pt; background: #f1f5f9; padding: 1pt 3pt; }' +
+    'pre { font-family: Consolas, monospace; font-size: 10pt; background: #f1f5f9; padding: 8pt; border: 1pt solid #e2e8f0; overflow-x: auto; }' +
+    'pre code { background: none; padding: 0; }' +
+    'table { border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 10pt; }' +
+    'th, td { border: 1pt solid #cbd5e1; padding: 6pt 8pt; text-align: left; }' +
+    'th { background: #f1f5f9; font-weight: bold; }' +
+    'strong { color: #0f172a; }' +
+    'a { color: #3B82F6; }' +
+    'hr { border: none; border-top: 1pt solid #e2e8f0; margin: 12pt 0; }' +
+    '</style></head><body>' + bodyContent + '</body></html>';
+
+  const blob = new Blob([docHtml], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'studysnap-' + currentAction + '-' + Date.now() + '.md';
+  a.download = 'studysnap-' + currentAction + '-' + Date.now() + '.doc';
   a.click();
   URL.revokeObjectURL(url);
 });
@@ -357,8 +421,10 @@ $('saveSettings').addEventListener('click', async () => {
   const apiKey = $('apiKeyInput').value.trim();
   const defaultAction = $('defaultAction').value;
 
+  const model = $('modelSelect').value;
+
   await chrome.storage.local.set({ anthropic_api_key: apiKey });
-  await chrome.storage.sync.set({ default_action: defaultAction });
+  await chrome.storage.sync.set({ default_action: defaultAction, model: model });
 
   const btn = $('saveSettings');
   btn.textContent = 'Saved!';
@@ -367,9 +433,10 @@ $('saveSettings').addEventListener('click', async () => {
 
 async function loadSettings() {
   const { anthropic_api_key = '' } = await chrome.storage.local.get('anthropic_api_key');
-  const { default_action = 'study-guide' } = await chrome.storage.sync.get('default_action');
+  const { default_action = 'study-guide', model = 'claude-sonnet-4-5-20250929' } = await chrome.storage.sync.get(['default_action', 'model']);
   $('apiKeyInput').value = anthropic_api_key;
   $('defaultAction').value = default_action;
+  $('modelSelect').value = model;
 
   const { usage_today = 0, usage_date = '' } = await chrome.storage.local.get(['usage_today', 'usage_date']);
   const today = new Date().toISOString().split('T')[0];

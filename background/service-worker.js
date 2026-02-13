@@ -135,7 +135,7 @@ async function handleTransformRequest(message, tab) {
 
   sendToPanel({ type: 'transform-start', action });
 
-  // Get API key
+  // Get API key and model
   const { anthropic_api_key } = await chrome.storage.local.get('anthropic_api_key');
   if (!anthropic_api_key) {
     sendToPanel({
@@ -144,6 +144,7 @@ async function handleTransformRequest(message, tab) {
     });
     return;
   }
+  const { model = 'claude-sonnet-4-5-20250929' } = await chrome.storage.sync.get('model');
 
   const systemPrompt = SYSTEM_PROMPTS[action] || SYSTEM_PROMPTS.notes;
   const userMessage = `Here is HTML content from the webpage "${pageTitle}" (${pageUrl}):\n\n${html}\n\nPlease transform this content as requested.`;
@@ -158,7 +159,7 @@ async function handleTransformRequest(message, tab) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: model,
         max_tokens: 4096,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
