@@ -203,6 +203,8 @@ body {
 .sp-markdown-content h2 { font-size: 18px; margin: 18px 0 8px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
 .sp-markdown-content h3 { font-size: 16px; margin: 14px 0 6px; color: #334155; }
 .sp-markdown-content h4 { font-size: 14px; margin: 12px 0 4px; color: #475569; }
+.sp-markdown-content h5 { font-size: 13px; margin: 10px 0 4px; color: #475569; font-weight: 600; }
+.sp-markdown-content h6 { font-size: 12px; margin: 10px 0 4px; color: #64748b; font-weight: 600; }
 .sp-markdown-content p { margin: 8px 0; }
 .sp-markdown-content strong { color: #0f172a; }
 .sp-markdown-content ul, .sp-markdown-content ol { padding-left: 24px; margin: 8px 0; }
