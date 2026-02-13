@@ -392,8 +392,8 @@
     const pageTitle = document.title;
 
     let cleanedHtml = html;
-    if (typeof window.__studySnapProcessHTML === 'function') {
-      cleanedHtml = window.__studySnapProcessHTML(html);
+    if (typeof __studySnapProcessHTML === 'function') {
+      cleanedHtml = __studySnapProcessHTML(html);
     }
 
     if (cleanedHtml.length > 100000) {

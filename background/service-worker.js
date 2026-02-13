@@ -33,7 +33,8 @@ chrome.action.onClicked.addListener(async (tab) => {
   } catch (e) {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['lib/utils.js', 'content/inspector.js']
+      files: ['lib/utils.js', 'content/inspector.js'],
+      world: 'ISOLATED'
     });
   }
 });
@@ -127,7 +128,7 @@ async function handleTransformRequest(message, tab) {
   sendToPanel({ type: 'transform-start', action });
 
   // Get API key
-  const { anthropic_api_key } = await chrome.storage.sync.get('anthropic_api_key');
+  const { anthropic_api_key } = await chrome.storage.local.get('anthropic_api_key');
   if (!anthropic_api_key) {
     sendToPanel({
       type: 'transform-error',

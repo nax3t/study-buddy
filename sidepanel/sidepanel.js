@@ -357,10 +357,8 @@ $('saveSettings').addEventListener('click', async () => {
   const apiKey = $('apiKeyInput').value.trim();
   const defaultAction = $('defaultAction').value;
 
-  await chrome.storage.sync.set({
-    anthropic_api_key: apiKey,
-    default_action: defaultAction
-  });
+  await chrome.storage.local.set({ anthropic_api_key: apiKey });
+  await chrome.storage.sync.set({ default_action: defaultAction });
 
   const btn = $('saveSettings');
   btn.textContent = 'Saved!';
@@ -368,7 +366,8 @@ $('saveSettings').addEventListener('click', async () => {
 });
 
 async function loadSettings() {
-  const { anthropic_api_key = '', default_action = 'study-guide' } = await chrome.storage.sync.get(['anthropic_api_key', 'default_action']);
+  const { anthropic_api_key = '' } = await chrome.storage.local.get('anthropic_api_key');
+  const { default_action = 'study-guide' } = await chrome.storage.sync.get('default_action');
   $('apiKeyInput').value = anthropic_api_key;
   $('defaultAction').value = default_action;
 
