@@ -3,9 +3,118 @@
 <head>
   <meta charset="utf-8">
   <title>StudySnap</title>
+  <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-  <h1>StudySnap</h1>
-  <p>Select content on a page to get started.</p>
+  <!-- Header -->
+  <header class="sp-header">
+    <div class="sp-logo">
+      <span class="sp-logo-icon">&#x1F4DA;</span>
+      <span class="sp-logo-text">StudySnap</span>
+    </div>
+    <button class="sp-settings-toggle" id="settingsToggle" title="Settings">
+      &#x2699;&#xFE0F;
+    </button>
+  </header>
+
+  <!-- Settings Panel (collapsible) -->
+  <div class="sp-settings" id="settingsPanel" style="display:none;">
+    <div class="sp-setting-row">
+      <label for="apiKeyInput">Anthropic API Key</label>
+      <div class="sp-key-input-wrap">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+        <button class="sp-key-toggle" id="keyToggle">&#x1F441;</button>
+      </div>
+    </div>
+    <div class="sp-setting-row">
+      <label for="defaultAction">Default Action</label>
+      <select id="defaultAction">
+        <option value="notes">Notes</option>
+        <option value="study-guide" selected>Study Guide</option>
+        <option value="flashcards">Flashcards</option>
+        <option value="summary">Summary</option>
+        <option value="practice-quiz">Practice Quiz</option>
+        <option value="key-terms">Key Terms</option>
+      </select>
+    </div>
+    <div class="sp-setting-row">
+      <button class="sp-save-btn" id="saveSettings">Save Settings</button>
+    </div>
+    <div class="sp-usage" id="usageInfo"></div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="sp-main" id="mainContent">
+    <!-- Empty State -->
+    <div class="sp-empty" id="emptyState">
+      <div class="sp-empty-icon">&#x1F50D;</div>
+      <h2>Select Content to Study</h2>
+      <p>Click the StudySnap icon in your toolbar, then click any element on the page to transform it into study materials.</p>
+    </div>
+
+    <!-- Loading State -->
+    <div class="sp-loading" id="loadingState" style="display:none;">
+      <div class="sp-spinner"></div>
+      <p id="loadingText">Generating study materials...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="sp-error" id="errorState" style="display:none;">
+      <div class="sp-error-icon">&#x26A0;&#xFE0F;</div>
+      <p id="errorText"></p>
+      <button class="sp-retry-btn" id="retryBtn">Try Again</button>
+    </div>
+
+    <!-- Results Area -->
+    <div class="sp-results" id="resultsArea" style="display:none;">
+      <!-- Toolbar -->
+      <div class="sp-toolbar">
+        <span class="sp-result-type" id="resultType"></span>
+        <div class="sp-toolbar-actions">
+          <button class="sp-tool-btn" id="copyBtn" title="Copy to clipboard">&#x1F4CB;</button>
+          <button class="sp-tool-btn" id="downloadBtn" title="Download as Markdown">&#x2B07;&#xFE0F;</button>
+          <button class="sp-tool-btn" id="regenerateBtn" title="Regenerate">&#x1F504;</button>
+        </div>
+      </div>
+
+      <!-- Markdown Content -->
+      <div class="sp-markdown-content" id="markdownContent" style="display:none;"></div>
+
+      <!-- Flashcards -->
+      <div class="sp-flashcards" id="flashcardsContent" style="display:none;">
+        <div class="sp-flashcard-container">
+          <div class="sp-flashcard" id="flashcard">
+            <div class="sp-flashcard-inner" id="flashcardInner">
+              <div class="sp-flashcard-front" id="flashcardFront"></div>
+              <div class="sp-flashcard-back" id="flashcardBack"></div>
+            </div>
+          </div>
+          <p class="sp-flashcard-hint">Click card to flip</p>
+        </div>
+        <div class="sp-flashcard-nav">
+          <button class="sp-nav-btn" id="prevCard">&#x2190; Prev</button>
+          <span class="sp-card-counter" id="cardCounter">1 / 1</span>
+          <button class="sp-nav-btn" id="nextCard">Next &#x2192;</button>
+        </div>
+      </div>
+
+      <!-- Practice Quiz -->
+      <div class="sp-quiz" id="quizContent" style="display:none;">
+        <div id="quizQuestions"></div>
+        <div class="sp-quiz-controls">
+          <button class="sp-quiz-submit" id="quizSubmit">Check Answers</button>
+          <div class="sp-quiz-score" id="quizScore" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Key Terms -->
+      <div class="sp-key-terms" id="keyTermsContent" style="display:none;">
+        <div id="termsList"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../lib/utils.js"></script>
+  <script src="sidepanel.js"></script>
 </body>
 </html>
