@@ -142,6 +142,34 @@
       background: #f1f5f9;
       color: #64748b;
     }
+
+    .ss-toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 8px;
+      z-index: 2147483647;
+      pointer-events: none;
+      animation: ss-toastIn 0.2s ease-out, ss-toastOut 0.3s ease-in 2s forwards;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    @keyframes ss-toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    @keyframes ss-toastOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
   `;
 
   function createShadowDOM() {
@@ -388,9 +416,21 @@
 
   // --- Lifecycle ---
 
+  function showToast(message) {
+    if (!shadow) return;
+    const toast = document.createElement('div');
+    toast.className = 'ss-toast';
+    toast.textContent = message;
+    shadow.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 2500);
+  }
+
   function activate() {
     isActive = true;
     createShadowDOM();
+    showToast('StudySnap active — hover and click to select content');
     document.addEventListener('mousemove', onMouseMove, true);
     document.addEventListener('mouseout', onMouseOut, true);
     document.addEventListener('click', onClick, true);

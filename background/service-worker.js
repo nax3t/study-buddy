@@ -17,6 +17,13 @@ chrome.runtime.onConnect.addListener((port) => {
 // --- Inspector Injection ---
 
 chrome.action.onClicked.addListener(async (tab) => {
+  // Always open side panel so user can access settings / see status
+  try {
+    await chrome.sidePanel.open({ tabId: tab.id });
+  } catch (e) {
+    // Side panel may already be open
+  }
+
   if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
     return;
   }
