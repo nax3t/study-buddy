@@ -369,7 +369,7 @@ $('downloadBtn').addEventListener('click', () => {
   const docHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
     'xmlns:w="urn:schemas-microsoft-com:office:word" ' +
     'xmlns="http://www.w3.org/TR/REC-html40">' +
-    '<head><meta charset="utf-8"><title>StudySnap - ' + escapeHtml(label) + '</title>' +
+    '<head><meta charset="utf-8"><title>StudyBuddy - ' + escapeHtml(label) + '</title>' +
     '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->' +
     '<style>' +
     'body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.6; color: #1e293b; max-width: 7in; margin: 0 auto; }' +

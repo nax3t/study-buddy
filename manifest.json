@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "StudySnap",
+  "name": "StudyBuddy",
   "version": "1.0.0",
   "description": "Select any content on a webpage and transform it into study materials with AI.",
   "permissions": [
@@ -24,7 +24,7 @@
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     },
-    "default_title": "StudySnap - Select content to study"
+    "default_title": "StudyBuddy - Select content to study"
   },
   "side_panel": {
     "default_path": "sidepanel/sidepanel.html"

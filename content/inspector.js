@@ -14,6 +14,9 @@
   let shadow = null;
   let highlightEl = null;
   let tagEl = null;
+  let selectionMode = 'element';
+  let textSelectionRange = null;
+  let modeToggleEl = null;
 
   const STYLES = `
     :host {
@@ -143,9 +146,46 @@
       color: #64748b;
     }
 
+    .ss-mode-toggle {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      overflow: hidden;
+      pointer-events: auto;
+      z-index: 2147483647;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 12px;
+    }
+
+    .ss-mode-btn {
+      padding: 6px 14px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 500;
+      color: #64748b;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      font-size: inherit;
+    }
+
+    .ss-mode-btn.active {
+      background: #3B82F6;
+      color: white;
+    }
+
+    .ss-mode-btn:hover:not(.active) {
+      background: #f1f5f9;
+    }
+
     .ss-toast {
       position: fixed;
-      top: 16px;
+      top: 48px;
       left: 50%;
       transform: translateX(-50%);
       background: #1e293b;
@@ -191,6 +231,17 @@
     tagEl.style.display = 'none';
     shadow.appendChild(tagEl);
 
+    modeToggleEl = document.createElement('div');
+    modeToggleEl.className = 'ss-mode-toggle';
+    modeToggleEl.innerHTML = `
+      <button class="ss-mode-btn active" data-mode="element">Element</button>
+      <button class="ss-mode-btn" data-mode="text">Text</button>
+    `;
+    modeToggleEl.querySelectorAll('.ss-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+    shadow.appendChild(modeToggleEl);
+
     document.documentElement.appendChild(shadowHost);
   }
 
@@ -202,6 +253,7 @@
     shadow = null;
     highlightEl = null;
     tagEl = null;
+    modeToggleEl = null;
   }
 
   function getElementDescriptor(el) {
@@ -248,6 +300,7 @@
   // --- Event Handlers ---
 
   function onMouseMove(e) {
+    if (selectionMode !== 'element') return;
     if (selectedElement) return;
     const el = document.elementFromPoint(e.clientX, e.clientY);
     if (!el || isOurElement(el)) {
@@ -260,6 +313,7 @@
   }
 
   function onMouseOut(e) {
+    if (selectionMode !== 'element') return;
     if (selectedElement) return;
     if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
       currentElement = null;
@@ -268,6 +322,7 @@
   }
 
   function onClick(e) {
+    if (selectionMode !== 'element') return;
     if (selectedElement) return;
     if (!currentElement || isOurElement(e.target)) return;
 
@@ -277,10 +332,23 @@
 
     selectedElement = currentElement;
     highlightEl.classList.add('selected');
-    showActionPanel();
+    showActionPanel(selectedElement.getBoundingClientRect());
+  }
+
+  function onMouseUp(e) {
+    if (selectionMode !== 'text') return;
+    if (selectedElement || textSelectionRange) return;
+    // Small delay to let browser finalize selection
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.toString().trim() === '') return;
+      textSelectionRange = sel.getRangeAt(0);
+      showActionPanel(textSelectionRange.getBoundingClientRect());
+    }, 10);
   }
 
   function onWheel(e) {
+    if (selectionMode !== 'element') return;
     if (selectedElement) return;
     if (!currentElement) return;
     if (!e.altKey) return; // Only navigate DOM tree when Alt is held
@@ -303,7 +371,7 @@
 
   function onKeyDown(e) {
     if (e.key === 'Escape') {
-      if (selectedElement) {
+      if (selectedElement || textSelectionRange) {
         cancelSelection();
       } else {
         deactivate();
@@ -315,13 +383,12 @@
 
   let actionPanelEl = null;
 
-  function showActionPanel() {
-    if (!shadow || !selectedElement) return;
+  function showActionPanel(rect) {
+    if (!shadow || (!selectedElement && !textSelectionRange)) return;
 
     actionPanelEl = document.createElement('div');
     actionPanelEl.className = 'ss-action-panel';
 
-    const rect = selectedElement.getBoundingClientRect();
     let panelLeft = rect.right + 12;
     let panelTop = rect.top;
 
@@ -379,16 +446,32 @@
   }
 
   function cancelSelection() {
-    selectedElement = null;
-    if (highlightEl) highlightEl.classList.remove('selected');
-    hideHighlight();
+    if (selectionMode === 'text') {
+      textSelectionRange = null;
+      window.getSelection().removeAllRanges();
+    } else {
+      selectedElement = null;
+      if (highlightEl) highlightEl.classList.remove('selected');
+      hideHighlight();
+    }
     hideActionPanel();
   }
 
   function handleActionSelected(action) {
-    if (!selectedElement) return;
+    let html;
 
-    const html = selectedElement.outerHTML;
+    if (selectionMode === 'text' && textSelectionRange) {
+      const fragment = textSelectionRange.cloneContents();
+      const tempDiv = document.createElement('div');
+      tempDiv.appendChild(fragment);
+      html = tempDiv.innerHTML;
+      if (!html.trim()) return;
+    } else if (selectedElement) {
+      html = selectedElement.outerHTML;
+    } else {
+      return;
+    }
+
     const pageUrl = window.location.href;
     const pageTitle = document.title;
 
@@ -415,6 +498,28 @@
     deactivate();
   }
 
+  // --- Mode Switching ---
+
+  function setMode(mode) {
+    if (mode === selectionMode) return;
+    cancelSelection();
+    selectionMode = mode;
+    if (modeToggleEl) {
+      modeToggleEl.querySelectorAll('.ss-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+    }
+    if (mode === 'text') {
+      hideHighlight();
+      currentElement = null;
+      showToast('Text mode: highlight text to select');
+    } else {
+      window.getSelection().removeAllRanges();
+      textSelectionRange = null;
+      showToast('Element mode: click to select');
+    }
+  }
+
   // --- Lifecycle ---
 
   function showToast(message) {
@@ -431,21 +536,25 @@
   function activate() {
     isActive = true;
     createShadowDOM();
-    showToast('StudySnap active — click to select, Alt+scroll to resize, Esc to exit');
+    showToast('StudyBuddy active — toggle mode at top, Esc to exit');
     document.addEventListener('mousemove', onMouseMove, true);
     document.addEventListener('mouseout', onMouseOut, true);
     document.addEventListener('click', onClick, true);
+    document.addEventListener('mouseup', onMouseUp, true);
     document.addEventListener('wheel', onWheel, { capture: true, passive: false });
     document.addEventListener('keydown', onKeyDown, true);
   }
 
   function deactivate() {
     isActive = false;
+    selectionMode = 'element';
     currentElement = null;
     selectedElement = null;
+    textSelectionRange = null;
     document.removeEventListener('mousemove', onMouseMove, true);
     document.removeEventListener('mouseout', onMouseOut, true);
     document.removeEventListener('click', onClick, true);
+    document.removeEventListener('mouseup', onMouseUp, true);
     document.removeEventListener('wheel', onWheel, true);
     document.removeEventListener('keydown', onKeyDown, true);
     hideActionPanel();
