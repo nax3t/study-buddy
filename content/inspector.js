@@ -6,18 +6,402 @@
   }
   window.__studySnapInitialized = true;
 
+  // State
   let isActive = false;
+  let currentElement = null;
+  let selectedElement = null;
+  let shadowHost = null;
+  let shadow = null;
+  let highlightEl = null;
+  let tagEl = null;
+
+  const STYLES = `
+    :host {
+      all: initial;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 0;
+      z-index: 2147483647;
+      pointer-events: none;
+    }
+
+    .ss-highlight {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(59, 130, 246, 0.12);
+      border: 2px solid #3B82F6;
+      border-radius: 3px;
+      transition: top 0.1s ease, left 0.1s ease, width 0.1s ease, height 0.1s ease;
+      z-index: 2147483646;
+    }
+
+    .ss-highlight.selected {
+      border-color: #2563EB;
+      background: rgba(37, 99, 235, 0.08);
+      animation: ss-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes ss-pulse {
+      0%, 100% { border-color: #2563EB; box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3); }
+      50% { border-color: #3B82F6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
+    }
+
+    .ss-tag {
+      position: fixed;
+      pointer-events: none;
+      background: #3B82F6;
+      color: white;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      line-height: 1;
+      padding: 3px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+      z-index: 2147483647;
+      opacity: 0.95;
+    }
+
+    .ss-action-panel {
+      position: fixed;
+      pointer-events: auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.1);
+      padding: 16px;
+      width: 280px;
+      z-index: 2147483647;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      animation: ss-fadeIn 0.15s ease-out;
+    }
+
+    @keyframes ss-fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ss-action-panel h3 {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .ss-actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .ss-action-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .ss-action-btn:hover {
+      background: #eff6ff;
+      border-color: #3B82F6;
+      transform: translateY(-1px);
+    }
+
+    .ss-action-btn .ss-icon {
+      font-size: 20px;
+    }
+
+    .ss-action-btn .ss-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #334155;
+    }
+
+    .ss-cancel-btn {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .ss-cancel-btn:hover {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+  `;
+
+  function createShadowDOM() {
+    shadowHost = document.createElement('div');
+    shadowHost.setAttribute('data-studysnap', 'root');
+    shadow = shadowHost.attachShadow({ mode: 'closed' });
+
+    const style = document.createElement('style');
+    style.textContent = STYLES;
+    shadow.appendChild(style);
+
+    highlightEl = document.createElement('div');
+    highlightEl.className = 'ss-highlight';
+    highlightEl.style.display = 'none';
+    shadow.appendChild(highlightEl);
+
+    tagEl = document.createElement('div');
+    tagEl.className = 'ss-tag';
+    tagEl.style.display = 'none';
+    shadow.appendChild(tagEl);
+
+    document.documentElement.appendChild(shadowHost);
+  }
+
+  function destroyShadowDOM() {
+    if (shadowHost && shadowHost.parentNode) {
+      shadowHost.parentNode.removeChild(shadowHost);
+    }
+    shadowHost = null;
+    shadow = null;
+    highlightEl = null;
+    tagEl = null;
+  }
+
+  function getElementDescriptor(el) {
+    let desc = el.tagName.toLowerCase();
+    if (el.id) desc += '#' + el.id;
+    if (el.className && typeof el.className === 'string') {
+      const classes = el.className.trim().split(/\s+/).slice(0, 2).join('.');
+      if (classes) desc += '.' + classes;
+    }
+    return desc;
+  }
+
+  function isOurElement(el) {
+    if (!el) return false;
+    let node = el;
+    while (node) {
+      if (node === shadowHost) return true;
+      if (node.getAttribute && node.getAttribute('data-studysnap')) return true;
+      node = node.parentNode;
+    }
+    return false;
+  }
+
+  function updateHighlight(el) {
+    if (!el || !highlightEl) return;
+    const rect = el.getBoundingClientRect();
+    highlightEl.style.display = 'block';
+    highlightEl.style.top = rect.top + 'px';
+    highlightEl.style.left = rect.left + 'px';
+    highlightEl.style.width = rect.width + 'px';
+    highlightEl.style.height = rect.height + 'px';
+
+    tagEl.style.display = 'block';
+    tagEl.textContent = getElementDescriptor(el);
+    tagEl.style.left = rect.left + 'px';
+    tagEl.style.top = Math.max(0, rect.top - 22) + 'px';
+  }
+
+  function hideHighlight() {
+    if (highlightEl) highlightEl.style.display = 'none';
+    if (tagEl) tagEl.style.display = 'none';
+  }
+
+  // --- Event Handlers ---
+
+  function onMouseMove(e) {
+    if (selectedElement) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el || isOurElement(el)) {
+      if (!currentElement) hideHighlight();
+      return;
+    }
+    if (el === currentElement) return;
+    currentElement = el;
+    updateHighlight(el);
+  }
+
+  function onMouseOut(e) {
+    if (selectedElement) return;
+    if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
+      currentElement = null;
+      hideHighlight();
+    }
+  }
+
+  function onClick(e) {
+    if (selectedElement) return;
+    if (!currentElement || isOurElement(e.target)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    selectedElement = currentElement;
+    highlightEl.classList.add('selected');
+    showActionPanel();
+  }
+
+  function onWheel(e) {
+    if (selectedElement) return;
+    if (!currentElement) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.deltaY < 0 && currentElement.parentElement &&
+        currentElement.parentElement !== document.documentElement &&
+        currentElement.parentElement !== document.body) {
+      currentElement = currentElement.parentElement;
+    } else if (e.deltaY > 0 && currentElement.children.length > 0) {
+      const firstChild = Array.from(currentElement.children).find(
+        c => c.nodeType === 1 && !isOurElement(c)
+      );
+      if (firstChild) currentElement = firstChild;
+    }
+    updateHighlight(currentElement);
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'Escape') {
+      if (selectedElement) {
+        cancelSelection();
+      } else {
+        deactivate();
+      }
+    }
+  }
+
+  // --- Action Panel ---
+
+  let actionPanelEl = null;
+
+  function showActionPanel() {
+    if (!shadow || !selectedElement) return;
+
+    actionPanelEl = document.createElement('div');
+    actionPanelEl.className = 'ss-action-panel';
+
+    const rect = selectedElement.getBoundingClientRect();
+    let panelLeft = rect.right + 12;
+    let panelTop = rect.top;
+
+    if (panelLeft + 280 > window.innerWidth) {
+      panelLeft = rect.left - 280 - 12;
+    }
+    if (panelLeft < 8) panelLeft = 8;
+    if (panelTop + 320 > window.innerHeight) {
+      panelTop = window.innerHeight - 320;
+    }
+    if (panelTop < 8) panelTop = 8;
+
+    actionPanelEl.style.left = panelLeft + 'px';
+    actionPanelEl.style.top = panelTop + 'px';
+
+    const actions = [
+      { id: 'notes', icon: '\u{1F4DD}', label: 'Notes' },
+      { id: 'study-guide', icon: '\u{1F4D6}', label: 'Study Guide' },
+      { id: 'flashcards', icon: '\u{1F5C2}', label: 'Flashcards' },
+      { id: 'summary', icon: '\u{1F4CB}', label: 'Summary' },
+      { id: 'practice-quiz', icon: '\u2705', label: 'Practice Quiz' },
+      { id: 'key-terms', icon: '\u{1F511}', label: 'Key Terms' }
+    ];
+
+    actionPanelEl.innerHTML = `
+      <h3>What would you like to create?</h3>
+      <div class="ss-actions-grid">
+        ${actions.map(a => `
+          <button class="ss-action-btn" data-action="${a.id}">
+            <span class="ss-icon">${a.icon}</span>
+            <span class="ss-label">${a.label}</span>
+          </button>
+        `).join('')}
+      </div>
+      <button class="ss-cancel-btn">Cancel (Esc)</button>
+    `;
+
+    actionPanelEl.querySelectorAll('.ss-action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const action = btn.dataset.action;
+        handleActionSelected(action);
+      });
+    });
+
+    actionPanelEl.querySelector('.ss-cancel-btn').addEventListener('click', cancelSelection);
+
+    shadow.appendChild(actionPanelEl);
+  }
+
+  function hideActionPanel() {
+    if (actionPanelEl && actionPanelEl.parentNode) {
+      actionPanelEl.parentNode.removeChild(actionPanelEl);
+    }
+    actionPanelEl = null;
+  }
+
+  function cancelSelection() {
+    selectedElement = null;
+    if (highlightEl) highlightEl.classList.remove('selected');
+    hideHighlight();
+    hideActionPanel();
+  }
+
+  function handleActionSelected(action) {
+    if (!selectedElement) return;
+
+    const html = selectedElement.outerHTML;
+    const pageUrl = window.location.href;
+    const pageTitle = document.title;
+
+    let cleanedHtml = html;
+    if (typeof window.__studySnapProcessHTML === 'function') {
+      cleanedHtml = window.__studySnapProcessHTML(html);
+    }
+
+    chrome.runtime.sendMessage({
+      type: 'transform-content',
+      html: cleanedHtml,
+      action: action,
+      pageUrl: pageUrl,
+      pageTitle: pageTitle
+    });
+
+    deactivate();
+  }
+
+  // --- Lifecycle ---
 
   function activate() {
     isActive = true;
-    console.log('StudySnap inspector activated');
-    document.body.style.outline = '3px solid #3B82F6';
+    createShadowDOM();
+    document.addEventListener('mousemove', onMouseMove, true);
+    document.addEventListener('mouseout', onMouseOut, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    document.addEventListener('keydown', onKeyDown, true);
   }
 
   function deactivate() {
     isActive = false;
-    document.body.style.outline = '';
-    console.log('StudySnap inspector deactivated');
+    currentElement = null;
+    selectedElement = null;
+    document.removeEventListener('mousemove', onMouseMove, true);
+    document.removeEventListener('mouseout', onMouseOut, true);
+    document.removeEventListener('click', onClick, true);
+    document.removeEventListener('wheel', onWheel, true);
+    document.removeEventListener('keydown', onKeyDown, true);
+    hideActionPanel();
+    destroyShadowDOM();
     chrome.runtime.sendMessage({ type: 'inspector-deactivated' });
   }
 
