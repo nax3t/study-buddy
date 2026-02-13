@@ -2,6 +2,8 @@
 
 A Chrome extension that turns any webpage content into study materials using Claude AI.
 
+<img width="1861" height="972" alt="Screenshot 2026-02-12 at 5 58 44 PM" src="https://github.com/user-attachments/assets/938a77c2-4fb3-4481-a34f-0937bfe5641f" />
+
 ## Features
 
 - **Select any content** — Click elements or highlight text on any webpage
