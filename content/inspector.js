@@ -368,6 +368,13 @@
       cleanedHtml = window.__studySnapProcessHTML(html);
     }
 
+    if (cleanedHtml.length > 100000) {
+      if (!confirm('This is a large selection and may take longer to process. Continue?')) {
+        cancelSelection();
+        return;
+      }
+    }
+
     chrome.runtime.sendMessage({
       type: 'transform-content',
       html: cleanedHtml,

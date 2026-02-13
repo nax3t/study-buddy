@@ -1,6 +1,7 @@
 // background/service-worker.js
 
 let sidePanelPort = null;
+let lastRequest = null;
 
 // --- Side Panel Connection ---
 
@@ -35,6 +36,9 @@ chrome.action.onClicked.addListener(async (tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'transform-content') {
     handleTransformRequest(message, sender.tab);
+  }
+  if (message.type === 'regenerate' && lastRequest) {
+    handleTransformRequest(lastRequest, { id: lastRequest.tabId });
   }
   if (message.type === 'inspector-deactivated') {
     // No-op, tracked for potential future use
@@ -99,6 +103,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown code fences:
 };
 
 async function handleTransformRequest(message, tab) {
+  lastRequest = { html: message.html, action: message.action, pageUrl: message.pageUrl, pageTitle: message.pageTitle, tabId: tab.id };
   const { html, action, pageUrl, pageTitle } = message;
 
   // Open side panel

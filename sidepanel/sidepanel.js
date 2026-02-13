@@ -6,6 +6,7 @@ let rawText = '';
 let flashcards = [];
 let currentCardIndex = 0;
 let quizData = null;
+let streamTimeout = null;
 
 // --- Port Connection ---
 const port = chrome.runtime.connect({ name: 'sidepanel' });
@@ -73,9 +74,21 @@ function onTransformStart(action) {
   const label = ACTION_LABELS[action] || action;
   loadingText.textContent = 'Generating ' + label.toLowerCase() + '...';
   showView(loadingState);
+
+  clearTimeout(streamTimeout);
+  streamTimeout = setTimeout(() => {
+    if (loadingState.style.display !== 'none') {
+      onTransformError('Request timed out. Please try again.');
+    }
+  }, 30000);
 }
 
 function onStreamDelta(text) {
+  clearTimeout(streamTimeout);
+  streamTimeout = setTimeout(() => {
+    onStreamComplete();
+  }, 15000);
+
   rawText += text;
 
   if (['notes', 'study-guide', 'summary'].includes(currentAction)) {
@@ -90,6 +103,8 @@ function onStreamDelta(text) {
 }
 
 function onStreamComplete() {
+  clearTimeout(streamTimeout);
+
   showView(resultsArea);
   resultType.textContent = ACTION_LABELS[currentAction];
 
