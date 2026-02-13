@@ -283,6 +283,7 @@
   function onWheel(e) {
     if (selectedElement) return;
     if (!currentElement) return;
+    if (!e.altKey) return; // Only navigate DOM tree when Alt is held
 
     e.preventDefault();
     e.stopPropagation();
@@ -430,7 +431,7 @@
   function activate() {
     isActive = true;
     createShadowDOM();
-    showToast('StudySnap active — hover and click to select content');
+    showToast('StudySnap active — click to select, Alt+scroll to resize, Esc to exit');
     document.addEventListener('mousemove', onMouseMove, true);
     document.addEventListener('mouseout', onMouseOut, true);
     document.addEventListener('click', onClick, true);
@@ -461,6 +462,9 @@
     if (msg.type === 'toggle-inspector') {
       window.__studySnapToggle();
       sendResponse({ active: isActive });
+    }
+    if (msg.type === 'deactivate-inspector') {
+      if (isActive) deactivate();
     }
   });
 

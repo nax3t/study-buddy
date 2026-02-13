@@ -2,6 +2,7 @@
 
 let sidePanelPort = null;
 let lastRequest = null;
+let activeInspectorTabId = null;
 
 // --- Side Panel Connection ---
 
@@ -10,6 +11,11 @@ chrome.runtime.onConnect.addListener((port) => {
     sidePanelPort = port;
     port.onDisconnect.addListener(() => {
       sidePanelPort = null;
+      // Deactivate inspector when side panel is closed
+      if (activeInspectorTabId !== null) {
+        chrome.tabs.sendMessage(activeInspectorTabId, { type: 'deactivate-inspector' }).catch(() => {});
+        activeInspectorTabId = null;
+      }
     });
   }
 });
@@ -29,13 +35,15 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 
   try {
-    await chrome.tabs.sendMessage(tab.id, { type: 'toggle-inspector' });
+    const resp = await chrome.tabs.sendMessage(tab.id, { type: 'toggle-inspector' });
+    activeInspectorTabId = resp?.active ? tab.id : null;
   } catch (e) {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['lib/utils.js', 'content/inspector.js'],
       world: 'ISOLATED'
     });
+    activeInspectorTabId = tab.id;
   }
 });
 
@@ -49,7 +57,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleTransformRequest(lastRequest, { id: lastRequest.tabId });
   }
   if (message.type === 'inspector-deactivated') {
-    // No-op, tracked for potential future use
+    activeInspectorTabId = null;
   }
 });
 
