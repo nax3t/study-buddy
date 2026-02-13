@@ -16,7 +16,6 @@
   let tagEl = null;
   let selectionMode = 'element';
   let textSelectionRange = null;
-  let modeToggleEl = null;
 
   const STYLES = `
     :host {
@@ -146,43 +145,6 @@
       color: #64748b;
     }
 
-    .ss-mode-toggle {
-      position: fixed;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-      overflow: hidden;
-      pointer-events: auto;
-      z-index: 2147483647;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 12px;
-    }
-
-    .ss-mode-btn {
-      padding: 6px 14px;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-weight: 500;
-      color: #64748b;
-      transition: all 0.15s ease;
-      font-family: inherit;
-      font-size: inherit;
-    }
-
-    .ss-mode-btn.active {
-      background: #3B82F6;
-      color: white;
-    }
-
-    .ss-mode-btn:hover:not(.active) {
-      background: #f1f5f9;
-    }
-
     .ss-toast {
       position: fixed;
       top: 48px;
@@ -231,17 +193,6 @@
     tagEl.style.display = 'none';
     shadow.appendChild(tagEl);
 
-    modeToggleEl = document.createElement('div');
-    modeToggleEl.className = 'ss-mode-toggle';
-    modeToggleEl.innerHTML = `
-      <button class="ss-mode-btn active" data-mode="element">Element</button>
-      <button class="ss-mode-btn" data-mode="text">Text</button>
-    `;
-    modeToggleEl.querySelectorAll('.ss-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => setMode(btn.dataset.mode));
-    });
-    shadow.appendChild(modeToggleEl);
-
     document.documentElement.appendChild(shadowHost);
   }
 
@@ -253,7 +204,6 @@
     shadow = null;
     highlightEl = null;
     tagEl = null;
-    modeToggleEl = null;
   }
 
   function getElementDescriptor(el) {
@@ -500,23 +450,18 @@
 
   // --- Mode Switching ---
 
-  function setMode(mode) {
+  function setMode(mode, silent) {
     if (mode === selectionMode) return;
     cancelSelection();
     selectionMode = mode;
-    if (modeToggleEl) {
-      modeToggleEl.querySelectorAll('.ss-mode-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
-      });
-    }
     if (mode === 'text') {
       hideHighlight();
       currentElement = null;
-      showToast('Text mode: highlight text to select');
+      if (!silent) showToast('Text mode: highlight text to select');
     } else {
       window.getSelection().removeAllRanges();
       textSelectionRange = null;
-      showToast('Element mode: click to select');
+      if (!silent) showToast('Element mode: click to select');
     }
   }
 
@@ -533,16 +478,19 @@
     }, 2500);
   }
 
-  function activate() {
+  async function activate() {
     isActive = true;
     createShadowDOM();
-    showToast('StudyBuddy active — toggle mode at top, Esc to exit');
+    showToast('StudyBuddy active \u2014 Esc to exit');
     document.addEventListener('mousemove', onMouseMove, true);
     document.addEventListener('mouseout', onMouseOut, true);
     document.addEventListener('click', onClick, true);
     document.addEventListener('mouseup', onMouseUp, true);
     document.addEventListener('wheel', onWheel, { capture: true, passive: false });
     document.addEventListener('keydown', onKeyDown, true);
+
+    const { selection_mode = 'element' } = await chrome.storage.sync.get('selection_mode');
+    setMode(selection_mode, true);
   }
 
   function deactivate() {
@@ -574,6 +522,9 @@
     }
     if (msg.type === 'deactivate-inspector') {
       if (isActive) deactivate();
+    }
+    if (msg.type === 'set-selection-mode') {
+      if (isActive) setMode(msg.mode);
     }
   });
 

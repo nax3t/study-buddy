@@ -420,11 +420,13 @@ $('keyToggle').addEventListener('click', () => {
 $('saveSettings').addEventListener('click', async () => {
   const apiKey = $('apiKeyInput').value.trim();
   const defaultAction = $('defaultAction').value;
-
   const model = $('modelSelect').value;
+  const selectionMode = $('selectionMode').value;
 
   await chrome.storage.local.set({ anthropic_api_key: apiKey });
-  await chrome.storage.sync.set({ default_action: defaultAction, model: model });
+  await chrome.storage.sync.set({ default_action: defaultAction, model: model, selection_mode: selectionMode });
+
+  chrome.runtime.sendMessage({ type: 'set-selection-mode', mode: selectionMode });
 
   const btn = $('saveSettings');
   btn.textContent = 'Saved!';
@@ -433,10 +435,11 @@ $('saveSettings').addEventListener('click', async () => {
 
 async function loadSettings() {
   const { anthropic_api_key = '' } = await chrome.storage.local.get('anthropic_api_key');
-  const { default_action = 'study-guide', model = 'claude-sonnet-4-5-20250929' } = await chrome.storage.sync.get(['default_action', 'model']);
+  const { default_action = 'study-guide', model = 'claude-sonnet-4-5-20250929', selection_mode = 'element' } = await chrome.storage.sync.get(['default_action', 'model', 'selection_mode']);
   $('apiKeyInput').value = anthropic_api_key;
   $('defaultAction').value = default_action;
   $('modelSelect').value = model;
+  $('selectionMode').value = selection_mode;
 
   const { usage_today = 0, usage_date = '' } = await chrome.storage.local.get(['usage_today', 'usage_date']);
   const today = new Date().toISOString().split('T')[0];

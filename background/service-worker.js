@@ -59,6 +59,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'inspector-deactivated') {
     activeInspectorTabId = null;
   }
+  if (message.type === 'set-selection-mode' && activeInspectorTabId !== null) {
+    chrome.tabs.sendMessage(activeInspectorTabId, message).catch(() => {});
+  }
 });
 
 // --- Claude API ---
